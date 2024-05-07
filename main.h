@@ -32,7 +32,7 @@ typedef struct editorConfig
     int screenRows;
     int screenCols;
     int numRows;
-    editorRow row;
+    editorRow *rows;
 } editorConfig;
 
 typedef struct
