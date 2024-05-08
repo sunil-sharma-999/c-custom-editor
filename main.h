@@ -11,6 +11,7 @@
 
 enum editorKey
 {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
@@ -44,6 +45,7 @@ typedef struct editorConfig
     char *filename;
     char statusMsg[80];
     time_t statusMsgTime;
+    unsigned int dirty;
 } editorConfig;
 
 typedef struct
@@ -53,5 +55,6 @@ typedef struct
 } aBuf;
 
 void die(const char *s);
+void editorSetStatusMessage(const char *fmt, ...);
 
 #endif
