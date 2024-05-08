@@ -23,7 +23,7 @@ int editorRowCxToRx(editorRow *row, int cx)
     for (j = 0; j < cx; j++)
     {
         if (row->chars[j] == '\t')
-            rx += (CUSTOM_EDITOR_TAB_STOP - 1) - (rx % CUSTOM_EDITOR_TAB_STOP);
+            rx += (EDITOR_TAB_STOP - 1) - (rx % EDITOR_TAB_STOP);
         rx++;
     }
     return rx;
@@ -38,7 +38,7 @@ void editorUpdateRow(editorRow *row)
             tabs++;
 
     free(row->render);
-    row->render = malloc(row->size + tabs * (CUSTOM_EDITOR_TAB_STOP - 1) + 1);
+    row->render = malloc(row->size + tabs * (EDITOR_TAB_STOP - 1) + 1);
 
     int idx = 0;
     for (j = 0; j < row->size; j++)
@@ -46,7 +46,7 @@ void editorUpdateRow(editorRow *row)
         if (row->chars[j] == '\t')
         {
             row->render[idx++] = ' ';
-            while (idx % CUSTOM_EDITOR_TAB_STOP != 0)
+            while (idx % EDITOR_TAB_STOP != 0)
                 row->render[idx++] = ' ';
         }
         else
@@ -387,6 +387,7 @@ void editorMoveCursor(int key)
 
 void editorProcessKeypress()
 {
+    static int quitTimes = EDITOR_QUIT_TIMES;
     int c = editorReadKey();
     switch (c)
     {
@@ -424,6 +425,14 @@ void editorProcessKeypress()
         E.cx = E.rows[E.cy].size;
         break;
     case CTRL_KEY('q'):
+        if (E.dirty && quitTimes > 0)
+        {
+            editorSetStatusMessage("File has unsaved changes. "
+                                   "Press Ctrl-Q %d more time to quit.",
+                                   quitTimes);
+            quitTimes--;
+            return;
+        }
         write(STDOUT_FILENO, "\x1b[2J", 4);
         write(STDOUT_FILENO, "\x1b[H", 3);
         exit(EXIT_SUCCESS);
@@ -435,6 +444,8 @@ void editorProcessKeypress()
         editorInsertChar(c);
         break;
     }
+
+    quitTimes = EDITOR_QUIT_TIMES;
 }
 
 // Output
@@ -521,7 +532,7 @@ void editorDrawRows(aBuf *ab)
             {
                 char welcome[80];
                 int wmLen = snprintf(welcome, sizeof(welcome),
-                                     "Custom Editor -- version %s", CUSTOM_EDITOR_VERSION);
+                                     "Custom Editor -- version %s", EDITOR_VERSION);
                 if (wmLen > E.screenCols)
                     wmLen = E.screenCols;
                 int padding = (E.screenCols - wmLen) / 2;
