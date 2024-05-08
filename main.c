@@ -454,11 +454,7 @@ void editorDrawRows(aBuf *ab)
             if (len > E.screenCols)
                 len = E.screenCols;
 
-            char *chars = malloc(len * sizeof(char));
-            for (int i = 0; i < len; i++)
-                chars[i] = E.rows[fileRow].render[i + E.colOff];
-
-            abAppend(ab, chars, len);
+            abAppend(ab, E.rows[fileRow].render + E.colOff, len);
         }
 
         abAppend(ab, "\x1b[K", 3);
