@@ -2,9 +2,12 @@
 #define EDITOR_H
 
 #include "termio.h"
+#include "time.h"
+
+#define CUSTOM_EDITOR_VERSION "0.0.1"
 
 #define CTRL_KEY(k) ((k) & 0x1f)
-#define CUSTOM_EDITOR_VERSION "0.0.1"
+#define CUSTOM_EDITOR_TAB_STOP 8
 
 enum editorKey
 {
@@ -23,11 +26,14 @@ typedef struct editorRow
 {
     int size;
     char *chars;
+    char *render;
+    int rsize;
 } editorRow;
 
 typedef struct editorConfig
 {
     int cx, cy;
+    int rx;
     int rowOff;
     int colOff;
     struct termios orig_termios;
@@ -35,6 +41,9 @@ typedef struct editorConfig
     int screenCols;
     int numRows;
     editorRow *rows;
+    char *filename;
+    char statusMsg[80];
+    time_t statusMsgTime;
 } editorConfig;
 
 typedef struct
@@ -44,33 +53,5 @@ typedef struct
 } aBuf;
 
 void die(const char *s);
-
-void disableRawMode();
-
-void enableRawMode();
-
-int editorReadKey();
-
-void editorProcessKeypress();
-
-void editorRefreshScreen();
-
-void editorDrawRows(aBuf *ab);
-
-int getWindowSize(int *rows, int *cols);
-
-void initEditorConfig();
-
-int getCursorPosition(int *rows, int *cols);
-
-// Append char Buffer
-void abAppend(aBuf *ab, const char *s, int len);
-
-// Free char buffer
-void abFree(aBuf *ab);
-
-void editorMoveCursor(int key);
-
-void editorOpen(char *fileName);
 
 #endif
