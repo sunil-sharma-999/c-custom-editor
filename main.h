@@ -28,6 +28,8 @@ typedef struct editorRow
 typedef struct editorConfig
 {
     int cx, cy;
+    int rowOff;
+    int colOff;
     struct termios orig_termios;
     int screenRows;
     int screenCols;

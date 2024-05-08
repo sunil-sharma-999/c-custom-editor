@@ -5,3 +5,4 @@ C_FLAGS+=-std=c99
 
 editor: main.c
 	gcc $(C_FLAGS) main.c -o editor
+
