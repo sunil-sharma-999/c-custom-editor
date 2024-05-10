@@ -14,6 +14,15 @@
 // Data
 editorConfig E;
 
+/*** filetypes ***/
+char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
+editorSyntax HLDB[] = {
+    {"c",
+     C_HL_extensions,
+     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
+};
+#define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
+
 // Row operations
 
 void editorFreeRow(editorRow *row)
@@ -225,6 +234,7 @@ void editorSave()
             editorSetStatusMessage("Save aborted");
             return;
         }
+        editorSelectSyntaxHighlight();
     }
     int len;
     char *buf = editorRowsToString(&len);
@@ -254,6 +264,7 @@ void editorOpen(char *fileName)
 {
     free(E.filename);
     E.filename = strdup(fileName);
+    editorSelectSyntaxHighlight();
 
     FILE *fp = fopen(fileName, "r");
     if (!fp)
@@ -625,6 +636,8 @@ int editorSyntaxToColor(int hl)
 {
     switch (hl)
     {
+    case HL_STRING:
+        return 35;
     case HL_NUMBER:
         return 31;
     case HL_MATCH:
@@ -639,23 +652,86 @@ void editorUpdateSyntax(editorRow *row)
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
 
+    if (E.syntax == NULL)
+        return;
+
     int prevSep = 1;
+    int inString = 0;
 
     int i = 0;
     while (i < row->rsize)
     {
         char c = row->render[i];
         unsigned char prevHL = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
-        if ((isdigit(c) && (prevSep || prevHL == HL_NUMBER)) ||
-            (c == '.' && prevHL == HL_NUMBER))
+
+        // highlight strings
+        if (E.syntax->flags & HL_HIGHLIGHT_STRINGS)
         {
-            row->hl[i] = HL_NUMBER;
-            i++;
-            prevSep = 0;
-            continue;
+            if (inString)
+            {
+                row->hl[i] = HL_STRING;
+                if (c == '\\' && i + 1 < row->rsize)
+                {
+                    row->hl[i + 1] = HL_STRING;
+                    i += 2;
+                    continue;
+                }
+                if (c == inString)
+                    inString = 0;
+                i++;
+                prevSep = 1;
+                continue;
+            }
+            else if (c == '"' || c == '\'')
+            {
+                inString = c;
+                row->hl[i] = HL_STRING;
+                i++;
+                continue;
+            }
+        }
+
+        // highlight numbers
+        if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS)
+        {
+            if ((isdigit(c) && (prevSep || prevHL == HL_NUMBER)) ||
+                (c == '.' && prevHL == HL_NUMBER))
+            {
+                row->hl[i] = HL_NUMBER;
+                i++;
+                prevSep = 0;
+                continue;
+            }
         }
         prevSep = is_separator(c);
         i++;
+    }
+}
+
+void editorSelectSyntaxHighlight()
+{
+    E.syntax = NULL;
+    if (!E.filename)
+        return;
+    char *ext = strrchr(E.filename, '.');
+    for (unsigned int j = 0; j < HLDB_ENTRIES; j++)
+    {
+        editorSyntax *s = &HLDB[j];
+        unsigned int i = 0;
+        while (s->fileMatch[i])
+        {
+            int is_ext = (s->fileMatch[i][0] == '.');
+            if ((is_ext && ext && !strcmp(ext, s->fileMatch[i])) ||
+                (!is_ext && strstr(E.filename, s->fileMatch[i])))
+            {
+                E.syntax = s;
+                int fileRow;
+                for (fileRow = 0; fileRow < E.numRows; fileRow++)
+                    editorUpdateSyntax(&E.rows[fileRow]);
+                return;
+            }
+            i++;
+        }
     }
 }
 
@@ -688,7 +764,7 @@ void editorDrawStatusBar(aBuf *ab)
                        E.filename ? E.filename : "[No Name]", E.numRows,
                        E.dirty ? "(modified)" : "");
 
-    int rLen = snprintf(rStatus, sizeof(rStatus), "%d/%d",
+    int rLen = snprintf(rStatus, sizeof(rStatus), "%s | %d/%d", E.syntax ? E.syntax->fileType : "no ft",
                         E.cy + 1, E.numRows);
 
     if (len > E.screenCols)
@@ -935,6 +1011,7 @@ void initEditorConfig()
     E.statusMsg[0] = '\0';
     E.statusMsgTime = 0;
     E.dirty = 0;
+    E.syntax = NULL;
     editorSetStatusMessage(
         "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 

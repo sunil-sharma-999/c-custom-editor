@@ -9,6 +9,8 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define EDITOR_TAB_STOP 8
 #define EDITOR_QUIT_TIMES 1
+#define HL_HIGHLIGHT_NUMBERS (1 << 0)
+#define HL_HIGHLIGHT_STRINGS (1 << 1)
 
 enum editorKey
 {
@@ -27,6 +29,8 @@ enum editorKey
 enum editorHighlight
 {
     HL_NORMAL = 0,
+    HL_COMMENT,
+    HL_STRING,
     HL_NUMBER,
     HL_MATCH
 
@@ -40,6 +44,13 @@ typedef struct editorRow
     int rsize;
     unsigned char *hl;
 } editorRow;
+
+typedef struct editorSyntax
+{
+    char *fileType;
+    char **fileMatch;
+    int flags;
+} editorSyntax;
 
 typedef struct editorConfig
 {
@@ -56,6 +67,7 @@ typedef struct editorConfig
     char statusMsg[80];
     time_t statusMsgTime;
     unsigned int dirty;
+    struct editorSyntax *syntax;
 } editorConfig;
 
 typedef struct
@@ -71,5 +83,6 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int));
 void editorRefreshScreen();
 void editorFind();
 void editorUpdateSyntax(editorRow *row);
+void editorSelectSyntaxHighlight();
 
 #endif
