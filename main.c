@@ -216,7 +216,7 @@ void editorSave()
 {
     if (E.filename == NULL)
     {
-        E.filename = editorPrompt("Save as: %s");
+        E.filename = editorPrompt("Save as: %s", NULL);
         if (E.filename == NULL)
         {
             editorSetStatusMessage("Save aborted");
@@ -444,7 +444,7 @@ int getWindowSize(int *rows, int *cols)
 
 // Input
 
-char *editorPrompt(char *prompt)
+char *editorPrompt(char *prompt, void (*callback)(char *, int))
 {
     size_t bufsize = 128;
     char *buf = malloc(bufsize);
@@ -463,6 +463,8 @@ char *editorPrompt(char *prompt)
         else if (c == '\x1b')
         {
             editorSetStatusMessage("");
+            if (callback)
+                callback(buf, c);
             free(buf);
             return NULL;
         }
@@ -471,6 +473,8 @@ char *editorPrompt(char *prompt)
             if (buflen != 0)
             {
                 editorSetStatusMessage("");
+                if (callback)
+                    callback(buf, c);
                 return buf;
             }
         }
@@ -484,6 +488,8 @@ char *editorPrompt(char *prompt)
             buf[buflen++] = c;
             buf[buflen] = '\0';
         }
+        if (callback)
+            callback(buf, c);
     }
 }
 
@@ -748,12 +754,10 @@ void editorRefreshScreen()
 
 // find feature
 
-void editorFind()
+void editorFindCallback(char *query, int key)
 {
-    char *query = editorPrompt("Search: %s (ESC to cancel)");
-    if (query == NULL)
+    if (key == '\r' || key == '\x1b')
         return;
-
     int i;
     for (i = 0; i < E.numRows; i++)
     {
@@ -767,11 +771,33 @@ void editorFind()
                 E.rowOff = E.numRows;
             if (E.cx < E.screenCols)
                 E.colOff = 0;
-
+            else
+                E.colOff = E.cx;
             break;
         }
     }
-    free(query);
+}
+
+void editorFind()
+{
+
+    int savedCX = E.cx;
+    int savedCY = E.cy;
+    int savedColOff = E.colOff;
+    int savedRowOff = E.rowOff;
+
+    char *query = editorPrompt("Search: %s (ESC to cancel)", editorFindCallback);
+    if (query)
+    {
+        free(query);
+    }
+    else
+    {
+        E.cx = savedCX;
+        E.cy = savedCY;
+        E.colOff = savedColOff;
+        E.rowOff = savedRowOff;
+    }
 }
 
 // init

@@ -58,7 +58,7 @@ typedef struct
 void die(const char *s);
 void editorSetStatusMessage(const char *fmt, ...);
 void editorUpdateRow(editorRow *row);
-char *editorPrompt(char *prompt);
+char *editorPrompt(char *prompt, void (*callback)(char *, int));
 void editorRefreshScreen();
 void editorFind();
 
