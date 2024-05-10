@@ -905,7 +905,20 @@ void editorDrawRows(aBuf *ab)
             int currentColor = -1;
             for (j = 0; j < len; j++)
             {
-                if (hl[j] == HL_NORMAL)
+                if (iscntrl(s[j]))
+                {
+                    char sym = (s[j] <= 26) ? '@' + s[j] : '?';
+                    abAppend(ab, "\x1b[7m", 4);
+                    abAppend(ab, &sym, 1);
+                    abAppend(ab, "\x1b[m", 3);
+                    if (currentColor != -1)
+                    {
+                        char buf[16];
+                        int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", currentColor);
+                        abAppend(ab, buf, clen);
+                    }
+                }
+                else if (hl[j] == HL_NORMAL)
                 {
                     if (currentColor != -1)
                     {
