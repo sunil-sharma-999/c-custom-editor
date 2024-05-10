@@ -24,12 +24,21 @@ enum editorKey
     DELETE_KEY
 };
 
+enum editorHighlight
+{
+    HL_NORMAL = 0,
+    HL_NUMBER,
+    HL_MATCH
+
+};
+
 typedef struct editorRow
 {
     int size;
     char *chars;
     char *render;
     int rsize;
+    unsigned char *hl;
 } editorRow;
 
 typedef struct editorConfig
@@ -61,5 +70,6 @@ void editorUpdateRow(editorRow *row);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
 void editorRefreshScreen();
 void editorFind();
+void editorUpdateSyntax(editorRow *row);
 
 #endif
