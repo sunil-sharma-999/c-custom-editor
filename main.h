@@ -57,5 +57,6 @@ typedef struct
 
 void die(const char *s);
 void editorSetStatusMessage(const char *fmt, ...);
+void editorUpdateRow(editorRow *row);
 
 #endif

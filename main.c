@@ -16,6 +16,32 @@ editorConfig E;
 
 // Row operations
 
+void editorFreeRow(editorRow *row)
+{
+    free(row->chars);
+    free(row->render);
+}
+
+void editorDeleteRow(int at)
+{
+    if (at < 0 || at >= E.numRows)
+        return;
+    editorFreeRow(&E.rows[at]);
+    memmove(&E.rows[at], &E.rows[at + 1], sizeof(editorRow) * (E.numRows - at - 1));
+    E.numRows--;
+    E.dirty++;
+}
+
+void editorRowAppendString(editorRow *row, char *s, size_t len)
+{
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&row->chars[row->size], s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    editorUpdateRow(row);
+    E.dirty++;
+}
+
 int editorRowCxToRx(editorRow *row, int cx)
 {
     int rx = 0;
@@ -38,7 +64,7 @@ void editorUpdateRow(editorRow *row)
             tabs++;
 
     free(row->render);
-    row->render = malloc(row->size + tabs * (EDITOR_TAB_STOP - 1) + 1);
+    row->render = malloc((row->size + tabs) * (EDITOR_TAB_STOP - 1) + 1);
 
     int idx = 0;
     for (j = 0; j < row->size; j++)
@@ -100,7 +126,8 @@ void editorRowDelChar(editorRow *row, int at)
 {
     if (at < 0 || at >= row->size)
         return;
-    memmove(&row->chars[at], &row->chars[at + 1], row->size - 1);
+
+    memmove(&row->chars[at], &row->chars[at + 1], row->size - at - 1);
     row->size--;
     editorUpdateRow(row);
     E.dirty++;
@@ -110,11 +137,22 @@ void editorDelChar()
 {
     if (E.cy == E.numRows)
         return;
+    if (E.cx == 0 && E.cy == 0)
+        return;
+
     editorRow *row = &E.rows[E.cy];
+
     if (E.cx > 0)
     {
         editorRowDelChar(row, E.cx - 1);
         E.cx--;
+    }
+    else
+    {
+        E.cx = E.rows[E.cy - 1].size;
+        editorRowAppendString(&E.rows[E.cy - 1], row->chars, row->size);
+        editorDeleteRow(E.cy);
+        E.cy--;
     }
 }
 
@@ -457,6 +495,13 @@ void editorProcessKeypress()
         }
         write(STDOUT_FILENO, "\x1b[2J", 4);
         write(STDOUT_FILENO, "\x1b[H", 3);
+        for (int i = 0; i < E.numRows; i++)
+        {
+            editorFreeRow(&E.rows[i]);
+        }
+        free(E.rows);
+        free(E.filename);
+
         exit(EXIT_SUCCESS);
         break;
     case CTRL_KEY('l'):
