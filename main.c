@@ -55,6 +55,21 @@ int editorRowCxToRx(editorRow *row, int cx)
     return rx;
 }
 
+int editorRowRxToCx(editorRow *row, int rx)
+{
+    int cur_rx = 0;
+    int cx;
+    for (cx = 0; cx < row->size; cx++)
+    {
+        if (row->chars[cx] == '\t')
+            cur_rx += (EDITOR_TAB_STOP - 1) - (cur_rx % EDITOR_TAB_STOP);
+        cur_rx++;
+        if (cur_rx > rx)
+            return cx;
+    }
+    return cx;
+}
+
 void editorUpdateRow(editorRow *row)
 {
     int tabs = 0;
@@ -530,7 +545,11 @@ void editorProcessKeypress()
         editorDelChar();
         break;
     case CTRL_KEY('s'):
-        editorSave();
+        if (E.dirty)
+            editorSave();
+        break;
+    case CTRL_KEY('f'):
+        editorFind();
         break;
 
     case ARROW_DOWN:
@@ -727,6 +746,34 @@ void editorRefreshScreen()
     abFree(&ab);
 }
 
+// find feature
+
+void editorFind()
+{
+    char *query = editorPrompt("Search: %s (ESC to cancel)");
+    if (query == NULL)
+        return;
+
+    int i;
+    for (i = 0; i < E.numRows; i++)
+    {
+        editorRow *row = &E.rows[i];
+        char *match = strstr(row->render, query);
+        if (match)
+        {
+            E.cy = i;
+            E.cx = editorRowRxToCx(row, match - row->render);
+            if (E.screenRows < E.numRows)
+                E.rowOff = E.numRows;
+            if (E.cx < E.screenCols)
+                E.colOff = 0;
+
+            break;
+        }
+    }
+    free(query);
+}
+
 // init
 
 void initEditorConfig()
@@ -742,7 +789,8 @@ void initEditorConfig()
     E.statusMsg[0] = '\0';
     E.statusMsgTime = 0;
     E.dirty = 0;
-    editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit");
+    editorSetStatusMessage(
+        "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
     if (getWindowSize(&E.screenRows, &E.screenCols) == -1)
         die("getWindowSize");
