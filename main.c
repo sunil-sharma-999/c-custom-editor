@@ -16,9 +16,16 @@ editorConfig E;
 
 /*** filetypes ***/
 char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
+char *C_HL_keywords[] = {
+    "switch", "if", "while", "for", "break", "continue", "return", "else",
+    "struct", "union", "typedef", "static", "enum", "class", "case",
+    "int|", "long|", "double|", "float|", "char|", "unsigned|", "signed|",
+    "void|", NULL};
 editorSyntax HLDB[] = {
     {"c",
      C_HL_extensions,
+     C_HL_keywords,
+     "//",
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
 };
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -636,6 +643,12 @@ int editorSyntaxToColor(int hl)
 {
     switch (hl)
     {
+    case HL_KEYWORD1:
+        return 33;
+    case HL_KEYWORD2:
+        return 32;
+    case HL_COMMENT:
+        return 36;
     case HL_STRING:
         return 35;
     case HL_NUMBER:
@@ -655,6 +668,11 @@ void editorUpdateSyntax(editorRow *row)
     if (E.syntax == NULL)
         return;
 
+    char **keywords = E.syntax->keywords;
+
+    char *comment = E.syntax->singlelineCommentStart;
+    int commentLen = comment ? strlen(comment) : 0;
+
     int prevSep = 1;
     int inString = 0;
 
@@ -663,6 +681,16 @@ void editorUpdateSyntax(editorRow *row)
     {
         char c = row->render[i];
         unsigned char prevHL = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+
+        // highlight comments
+        if (commentLen && !inString)
+        {
+            if (!strncmp(&row->render[i], comment, commentLen))
+            {
+                memset(&row->hl[i], HL_COMMENT, row->rsize - i);
+                break;
+            }
+        }
 
         // highlight strings
         if (E.syntax->flags & HL_HIGHLIGHT_STRINGS)
@@ -703,6 +731,33 @@ void editorUpdateSyntax(editorRow *row)
                 continue;
             }
         }
+
+        // highlight keywords
+        if (prevSep)
+        {
+            int j;
+            for (j = 0; keywords[j]; j++)
+            {
+                int klen = strlen(keywords[j]);
+                int kw2 = keywords[j][klen - 1] == '|';
+                if (kw2)
+                    klen--;
+
+                if (!strncmp(&row->render[i], keywords[j], klen) &&
+                    is_separator(row->render[i + klen]))
+                {
+                    memset(&row->hl[i], kw2 ? HL_KEYWORD2 : HL_KEYWORD1, klen);
+                    i += klen;
+                    break;
+                }
+            }
+            if (keywords[j] != NULL)
+            {
+                prevSep = 0;
+                continue;
+            }
+        }
+
         prevSep = is_separator(c);
         i++;
     }

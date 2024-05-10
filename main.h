@@ -30,6 +30,8 @@ enum editorHighlight
 {
     HL_NORMAL = 0,
     HL_COMMENT,
+    HL_KEYWORD1,
+    HL_KEYWORD2,
     HL_STRING,
     HL_NUMBER,
     HL_MATCH
@@ -49,6 +51,8 @@ typedef struct editorSyntax
 {
     char *fileType;
     char **fileMatch;
+    char **keywords;
+    char *singlelineCommentStart;
     int flags;
 } editorSyntax;
 
