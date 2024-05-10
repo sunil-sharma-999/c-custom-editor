@@ -29,6 +29,7 @@ enum editorKey
 enum editorHighlight
 {
     HL_NORMAL = 0,
+    HL_ML_COMMENT,
     HL_COMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2,
@@ -40,11 +41,13 @@ enum editorHighlight
 
 typedef struct editorRow
 {
+    int idx;
     int size;
     char *chars;
     char *render;
     int rsize;
     unsigned char *hl;
+    int hlOpenComment;
 } editorRow;
 
 typedef struct editorSyntax
@@ -53,6 +56,9 @@ typedef struct editorSyntax
     char **fileMatch;
     char **keywords;
     char *singlelineCommentStart;
+    char *multilineCommentStart;
+    char *multilineCommentEnd;
+
     int flags;
 } editorSyntax;
 

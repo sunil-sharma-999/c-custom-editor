@@ -25,7 +25,7 @@ editorSyntax HLDB[] = {
     {"c",
      C_HL_extensions,
      C_HL_keywords,
-     "//",
+     "//", "/*", "*/",
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
 };
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -45,6 +45,8 @@ void editorDeleteRow(int at)
         return;
     editorFreeRow(&E.rows[at]);
     memmove(&E.rows[at], &E.rows[at + 1], sizeof(editorRow) * (E.numRows - at - 1));
+    for (int j = at; j < E.numRows - 1; j++)
+        E.rows[j].idx--;
     E.numRows--;
     E.dirty++;
 }
@@ -121,6 +123,10 @@ void editorInsertRow(int at, char *s, size_t len)
 {
     E.rows = realloc(E.rows, sizeof(editorRow) * (E.numRows + 1));
     memmove(&E.rows[at + 1], &E.rows[at], sizeof(editorRow) * (E.numRows - at));
+    for (int j = at + 1; j <= E.numRows; j++)
+        E.rows[j].idx++;
+
+    E.rows[at].idx = at;
 
     E.rows[at].size = len;
     E.rows[at].chars = malloc(len + 1);
@@ -130,6 +136,7 @@ void editorInsertRow(int at, char *s, size_t len)
     E.rows[at].rsize = 0;
     E.rows[at].render = NULL;
     E.rows[at].hl = NULL;
+    E.rows[at].hlOpenComment = 0;
     editorUpdateRow(&E.rows[at]);
 
     E.numRows++;
@@ -648,6 +655,7 @@ int editorSyntaxToColor(int hl)
     case HL_KEYWORD2:
         return 32;
     case HL_COMMENT:
+    case HL_ML_COMMENT:
         return 36;
     case HL_STRING:
         return 35;
@@ -671,10 +679,16 @@ void editorUpdateSyntax(editorRow *row)
     char **keywords = E.syntax->keywords;
 
     char *comment = E.syntax->singlelineCommentStart;
+    char *mlCommentStart = E.syntax->multilineCommentStart;
+    char *mlCommentEnd = E.syntax->multilineCommentEnd;
+
     int commentLen = comment ? strlen(comment) : 0;
+    int mlCommentStartLen = mlCommentStart ? strlen(mlCommentStart) : 0;
+    int mlCommentEndLen = mlCommentEnd ? strlen(mlCommentEnd) : 0;
 
     int prevSep = 1;
     int inString = 0;
+    int inComment = (row->idx > 0 && E.rows[row->idx - 1].hlOpenComment);
 
     int i = 0;
     while (i < row->rsize)
@@ -683,12 +697,40 @@ void editorUpdateSyntax(editorRow *row)
         unsigned char prevHL = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
 
         // highlight comments
-        if (commentLen && !inString)
+        if (commentLen && !inString && !inComment)
         {
             if (!strncmp(&row->render[i], comment, commentLen))
             {
                 memset(&row->hl[i], HL_COMMENT, row->rsize - i);
                 break;
+            }
+        }
+
+        if (mlCommentStartLen && mlCommentEndLen && !inString)
+        {
+            if (inComment)
+            {
+                row->hl[i] = HL_ML_COMMENT;
+                if (!strncmp(&row->render[i], mlCommentEnd, mlCommentEndLen))
+                {
+                    memset(&row->hl[i], HL_ML_COMMENT, mlCommentEndLen);
+                    i += mlCommentEndLen;
+                    inComment = 0;
+                    prevSep = 1;
+                    continue;
+                }
+                else
+                {
+                    i++;
+                    continue;
+                }
+            }
+            else if (!strncmp(&row->render[i], mlCommentStart, mlCommentStartLen))
+            {
+                memset(&row->hl[i], HL_ML_COMMENT, mlCommentStartLen);
+                i += mlCommentStartLen;
+                inComment = 1;
+                continue;
             }
         }
 
@@ -761,6 +803,11 @@ void editorUpdateSyntax(editorRow *row)
         prevSep = is_separator(c);
         i++;
     }
+
+    int changed = (row->hlOpenComment != inComment);
+    row->hlOpenComment = inComment;
+    if (changed && row->idx + 1 < E.numRows)
+        editorUpdateSyntax(&E.rows[row->idx + 1]);
 }
 
 void editorSelectSyntaxHighlight()
